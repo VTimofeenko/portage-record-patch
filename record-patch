@@ -1,0 +1,55 @@
+#!/bin/bash
+# Utility that automates steps from
+# https://wiki.gentoo.org/wiki/Patches
+# Automatically detects the package name and version and records the changes in the file named as in $1 parameter
+# Should be run in the working directory where the package has been unpacked through ebuild prepare
+# Will prompt to init a git repo if it does not exist
+
+set -euo pipefail
+
+PATCH_NAME="$1"
+
+MY_ROOT=$(portageq envvar EROOT)
+MY_PWD=$(pwd)
+PORTAGE_ENVVAR_TMPDIR=$(portageq envvar PORTAGE_TMPDIR 2>/dev/null)
+MY_PORTAGE_TMPDIR=${PORTAGE_ENVVAR_TMPDIR:-/var/tmp}
+
+# Substitute to get the name of the package, first cut the left part, then the right part.
+FIRST_PART=${MY_PWD/${MY_PORTAGE_TMPDIR}\/portage\//}
+PACKAGE_NAME=${FIRST_PART%/work*}
+
+ENV_FILE_LOCATION="${MY_PORTAGE_TMPDIR}/portage/${PACKAGE_NAME}/temp/environment"  # location of temp/environment file
+PATCH_DIR="${MY_ROOT}etc/portage/patches/${PACKAGE_NAME}"
+
+# shellcheck source=/dev/null
+source "$ENV_FILE_LOCATION"
+
+DEFAULT_GIT_PARAMS=("--work-tree" "${S}" "--git-dir" "${S}/.git" "-c" "user.email=$(whoami)" -c "user.name=$(whoami)")
+
+# if the work directory is a git repo:
+if git "${DEFAULT_GIT_PARAMS[@]}" rev-parse --git-dir 2>/dev/null 1>&2; then
+    PATCH_FULL_PATH="${PATCH_DIR}/${PATCH_NAME/ /-}.patch"
+    echo "Recording the changes in ${PATCH_FULL_PATH}"
+    [ -f "${PATCH_FULL_PATH}" ] && echo "Patch file ${PATCH_FULL_PATH} already exists. Please choose a different name" && exit 1
+
+    [ ! -d "$PATCH_DIR" ] && echo "Creating ${PATCH_DIR}" && mkdir -p "${PATCH_DIR}"
+
+    git "${DEFAULT_GIT_PARAMS[@]}" diff > "$PATCH_FULL_PATH"
+    git "${DEFAULT_GIT_PARAMS[@]}" add -u
+    git "${DEFAULT_GIT_PARAMS[@]}" commit -m "${PATCH_NAME}"
+else
+    echo "The workdir ${S} does not seem to be a git repo. You should init it:"
+    echo "cd \"${S}\" && git init && git add . && git commit -m 'init'"
+    read -r -p "Should the script init it (y/n)? " choice
+    case "$choice" in
+        y|Y ) echo "Continuing";;
+        n|N ) echo "Exiting" && exit 1;;
+        * ) log "Input unknown. Exiting." && exit 1;;
+    esac
+
+    cd "${S}"
+    git "${DEFAULT_GIT_PARAMS[@]}" init
+    git "${DEFAULT_GIT_PARAMS[@]}" add .
+    git "${DEFAULT_GIT_PARAMS[@]}" commit -m 'init'
+    echo "Note: the '${PATCH_NAME}' comment was discarded"
+fi
