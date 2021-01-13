@@ -7,7 +7,6 @@
 
 set -euo pipefail
 
-PATCH_NAME="$1"
 
 MY_ROOT=$(portageq envvar EROOT)
 MY_PWD=$(pwd)
@@ -34,6 +33,11 @@ if git "${DEFAULT_GIT_PARAMS[@]}" rev-parse --git-dir 2>/dev/null 1>&2; then
         exit
     fi
 
+    PATCH_NAME=${1:-}
+    if [ -z "${PATCH_NAME}" ]; then
+        echo "Please provide the patch name as a parameter."
+        exit 1
+    fi
     PATCH_FULL_PATH="${PATCH_DIR}/${PATCH_NAME/ /-}.patch"
     echo "Recording the changes in ${PATCH_FULL_PATH}"
     [ -f "${PATCH_FULL_PATH}" ] && echo "Patch file ${PATCH_FULL_PATH} already exists. Please choose a different name" && exit 1
@@ -57,5 +61,4 @@ else
     git "${DEFAULT_GIT_PARAMS[@]}" init
     git "${DEFAULT_GIT_PARAMS[@]}" add .
     git "${DEFAULT_GIT_PARAMS[@]}" commit -m 'init'
-    echo "Note: the '${PATCH_NAME}' comment was discarded"
 fi
