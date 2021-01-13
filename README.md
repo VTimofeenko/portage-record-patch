@@ -26,3 +26,6 @@ On branch master
 nothing to commit, working tree clean
 ```
 
+# Installation
+
+`app-portage/portage-record-patch` Ebuild available in [nitratesky overlay](https://github.com/VTimofeenko/nitratesky).
