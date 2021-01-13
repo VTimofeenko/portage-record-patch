@@ -28,6 +28,12 @@ DEFAULT_GIT_PARAMS=("--work-tree" "${S}" "--git-dir" "${S}/.git" "-c" "user.emai
 
 # if the work directory is a git repo:
 if git "${DEFAULT_GIT_PARAMS[@]}" rev-parse --git-dir 2>/dev/null 1>&2; then
+    # check that there are any changes to record
+    if git "${DEFAULT_GIT_PARAMS[@]}" diff-index --quiet HEAD --; then
+        echo "Looks like there are no changes in the repo. Exiting."
+        exit
+    fi
+
     PATCH_FULL_PATH="${PATCH_DIR}/${PATCH_NAME/ /-}.patch"
     echo "Recording the changes in ${PATCH_FULL_PATH}"
     [ -f "${PATCH_FULL_PATH}" ] && echo "Patch file ${PATCH_FULL_PATH} already exists. Please choose a different name" && exit 1
